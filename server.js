@@ -1007,6 +1007,28 @@ app.post("/api/push/run-expiry-check", requireAuth, async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+// External cron trigger — no user login required, protected by a shared secret instead.
+app.post("/api/push/cron-trigger", async (req, res) => {
+  const providedSecret = req.headers["x-cron-secret"] || req.query.secret;
+
+  if (!process.env.CRON_SECRET) {
+    return res
+      .status(500)
+      .json({ error: "CRON_SECRET not configured on server" });
+  }
+  if (providedSecret !== process.env.CRON_SECRET) {
+    return res.status(401).json({ error: "Invalid or missing cron secret" });
+  }
+
+  try {
+    console.log("Running expiry push check via external cron trigger...");
+    const result = await sendExpiryPushNotifications();
+    res.json(result);
+  } catch (error) {
+    console.error("Cron trigger push job failed:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // Runs automatically every day at 8:00 AM server time
 cron.schedule("0 8 * * *", () => {
