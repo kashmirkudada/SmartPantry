@@ -828,16 +828,28 @@ app.get("/api/notifications", requireAuth, async (req, res) => {
     const notifications = items
       .filter((item) => new Date(item.expirationDate) <= threeDays)
       .map((item) => {
-        const exp = new Date(item.expirationDate);
-        const isExpired = exp < today;
-        const daysLeft = Math.ceil((exp - today) / (1000 * 60 * 60 * 24));
+        const days = daysUntilExpiry(item.expirationDate);
+        let type, message;
+
+        if (days < 0) {
+          type = "expired";
+          message = `${item.name} expired ${Math.abs(days)} day${Math.abs(days) !== 1 ? "s" : ""} ago`;
+        } else if (days === 0) {
+          type = "expired";
+          message = `${item.name} expires today`;
+        } else if (days === 1) {
+          type = "expiring_soon";
+          message = `${item.name} expires tomorrow`;
+        } else {
+          type = "expiring_soon";
+          message = `${item.name} expires in ${days} days`;
+        }
+
         return {
           id: item.id,
-          type: isExpired ? "expired" : "expiring_soon",
+          type,
           itemName: item.name,
-          message: isExpired
-            ? `${item.name} expired ${Math.abs(daysLeft)} day${Math.abs(daysLeft) !== 1 ? "s" : ""} ago`
-            : `${item.name} expires in ${daysLeft} day${daysLeft !== 1 ? "s" : ""}`,
+          message,
           expirationDate: item.expirationDate,
           createdAt: new Date().toISOString(),
         };

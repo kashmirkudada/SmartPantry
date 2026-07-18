@@ -682,13 +682,22 @@ function updateNotificationBadge(count) {
 
 function checkExpiryAlerts() {
   const today = new Date();
+  today.setHours(0, 0, 0, 0);
   const threeDays = new Date(today.getTime() + 3 * 24 * 60 * 60 * 1000);
-  const urgent = allItems.filter(
+
+  const relevant = allItems.filter(
     (i) => new Date(i.expirationDate) <= threeDays,
   );
-  if (urgent.length > 0) {
-    showToast(`${urgent.length} items expiring within 3 days`, "warning");
-  }
+  if (relevant.length === 0) return;
+
+  const expired = relevant.filter((i) => new Date(i.expirationDate) < today);
+  const expiringSoon = relevant.length - expired.length;
+
+  const parts = [];
+  if (expired.length) parts.push(`${expired.length} expired`);
+  if (expiringSoon) parts.push(`${expiringSoon} expiring soon`);
+
+  showToast(parts.join(", "), expired.length > 0 ? "error" : "warning");
 }
 
 // ============ RECIPES ============
