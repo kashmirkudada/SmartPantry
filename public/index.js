@@ -779,7 +779,9 @@ function previewPhoto(event) {
 
 // Enhanced integration flow for back-of-label metadata mapping
 async function analyzeWithAI() {
-  const photoFile = document.getElementById("photoUpload").files[0];
+  const cameraFile = document.getElementById("photoUploadCamera").files[0];
+  const galleryFile = document.getElementById("photoUploadGallery").files[0];
+  const photoFile = cameraFile || galleryFile;
   if (!photoFile) {
     showToast("Upload a photo first", "error");
     return;

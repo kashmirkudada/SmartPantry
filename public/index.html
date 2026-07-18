@@ -1353,18 +1353,49 @@
 
                 <div class="form-group">
                   <label class="form-label">Photo (optional)</label>
-                  <div
-                    class="file-upload"
-                    onclick="document.getElementById('photoUpload').click()"
-                  >
+                  <div class="file-upload" style="cursor: default">
+                    <div style="display: flex; gap: 10px; margin-bottom: 10px">
+                      <button
+                        type="button"
+                        class="button button-secondary"
+                        style="flex: 1"
+                        onclick="
+                          document.getElementById('photoUploadCamera').click()
+                        "
+                      >
+                        📷 Take Photo
+                      </button>
+                      <button
+                        type="button"
+                        class="button button-secondary"
+                        style="flex: 1"
+                        onclick="
+                          document.getElementById('photoUploadGallery').click()
+                        "
+                      >
+                        🖼️ Choose Photo
+                      </button>
+                    </div>
+
                     <input
                       type="file"
-                      id="photoUpload"
+                      id="photoUploadCamera"
                       accept="image/*"
                       capture="environment"
+                      style="display: none"
                       onchange="previewPhoto(event)"
                     />
-                    <div class="file-upload-text">📸 Tap to upload</div>
+                    <input
+                      type="file"
+                      id="photoUploadGallery"
+                      accept="image/*"
+                      style="display: none"
+                      onchange="previewPhoto(event)"
+                    />
+
+                    <div class="file-upload-text" style="margin-top: 4px">
+                      Take a new photo or choose one from your gallery
+                    </div>
                     <img
                       id="photoPreview"
                       class="file-preview"
