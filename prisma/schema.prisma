@@ -1,0 +1,81 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+model User {
+  id          String   @id @default(uuid())
+  name        String?
+  email       String   @unique
+  password    String
+  profilePic  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  pantryItems PantryItem[]
+  recipes     Recipe[]
+  notifications Notification[]
+  pushSubscriptions PushSubscription[]
+}
+model PantryItem {
+  id              String   @id @default(uuid())
+  name            String
+  quantity        Int      @default(1)
+  unit            String   @default("piece") // e.g., "kg", "L", "piece", "cup"
+  category        String   @default("other") // e.g., "vegetables", "dairy", "meat", "pantry"
+  expirationDate  DateTime
+  imageUrl        String?
+  notes           String?
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notifications   Notification[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  @@index([userId])
+}
+model Recipe {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  ingredients String   // JSON string of ingredients
+  instructions String
+  prepTime    Int?     // in minutes
+  cookTime    Int?     // in minutes
+  servings    Int?
+  difficulty  String   @default("medium") // easy, medium, hard
+  cuisine     String?
+  isFavorite  Boolean  @default(false)
+  source      String?
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@index([userId])
+}
+model Notification {
+  id        String   @id @default(uuid())
+  type      String   // "expiring_soon", "expired", "low_stock"
+  message   String
+  isRead    Boolean  @default(false)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  itemId    String
+  item      PantryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  readAt    DateTime?
+  @@index([userId])
+  @@index([itemId])
+}
+model PushSubscription {
+  id        String   @id @default(uuid())
+  userId    String
+  endpoint  String   @unique
+  keys      String   // JSON string: { p256dh, auth }
+  userAgent String?
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  @@index([userId])
+}
