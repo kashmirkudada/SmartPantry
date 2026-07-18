@@ -944,14 +944,21 @@ app.post("/api/push/test", requireAuth, async (req, res) => {
 
 // Core function: check every user's pantry and push alerts for items expiring within 3 days.
 // Called by the daily cron job below, and also exposed as a manual trigger route.
+// Returns the number of full days between today and the item's expiration date.
+// Positive = days remaining, 0 = expires today, negative = already expired.
+function daysUntilExpiry(expirationDate) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const exp = new Date(expirationDate);
+  exp.setHours(0, 0, 0, 0);
+  return Math.round((exp - today) / (1000 * 60 * 60 * 24));
+}
+
 async function sendExpiryPushNotifications() {
   if (!pushEnabled) {
     console.warn("Skipping push run — VAPID keys not configured");
     return { usersNotified: 0 };
   }
-
-  const today = new Date();
-  const threeDays = new Date(today.getTime() + 3 * 24 * 60 * 60 * 1000);
 
   const users = await prisma.user.findMany({
     include: {
@@ -965,15 +972,40 @@ async function sendExpiryPushNotifications() {
   for (const user of users) {
     if (user.pushSubscriptions.length === 0) continue;
 
-    const expiringSoon = user.pantryItems.filter(
-      (item) => new Date(item.expirationDate) <= threeDays,
-    );
-    if (expiringSoon.length === 0) continue;
+    // Only alert on specific milestones: 3 days out, 1 day out (the day before expiry),
+    // and the day it actually expires. Already-expired items (negative days) are skipped
+    // so old items don't keep re-triggering pushes forever.
+    const dueToday = user.pantryItems.filter((item) => {
+      const days = daysUntilExpiry(item.expirationDate);
+      return days === 3 || days === 1 || days === 0;
+    });
 
-    const body =
-      expiringSoon.length === 1
-        ? `${expiringSoon[0].name} is expiring soon`
-        : `${expiringSoon.length} items are expiring soon`;
+    if (dueToday.length === 0) continue;
+
+    let body;
+    if (dueToday.length === 1) {
+      const item = dueToday[0];
+      const days = daysUntilExpiry(item.expirationDate);
+      if (days === 0) body = `${item.name} expires today`;
+      else if (days === 1) body = `${item.name} expires tomorrow`;
+      else body = `${item.name} expires in ${days} days`;
+    } else {
+      const expiringToday = dueToday.filter(
+        (i) => daysUntilExpiry(i.expirationDate) === 0,
+      ).length;
+      const expiringTomorrow = dueToday.filter(
+        (i) => daysUntilExpiry(i.expirationDate) === 1,
+      ).length;
+      const expiringIn3 = dueToday.filter(
+        (i) => daysUntilExpiry(i.expirationDate) === 3,
+      ).length;
+
+      const parts = [];
+      if (expiringToday) parts.push(`${expiringToday} expiring today`);
+      if (expiringTomorrow) parts.push(`${expiringTomorrow} expiring tomorrow`);
+      if (expiringIn3) parts.push(`${expiringIn3} expiring in 3 days`);
+      body = parts.join(", ");
+    }
 
     const payload = JSON.stringify({ title: "SmartPantry", body, url: "/" });
 
@@ -997,7 +1029,6 @@ async function sendExpiryPushNotifications() {
   console.log(`Expiry push run complete — notified ${usersNotified} user(s)`);
   return { usersNotified };
 }
-
 // Manual trigger (useful for testing without waiting for the cron schedule)
 app.post("/api/push/run-expiry-check", requireAuth, async (req, res) => {
   try {
