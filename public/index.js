@@ -724,11 +724,22 @@ async function generateRecipes() {
   btn.textContent = "🍳 Generating…";
 
   try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const usableItems = allItems.filter(
+      (i) => new Date(i.expirationDate) >= today,
+    );
+
+    if (usableItems.length === 0) {
+      showToast("No non-expired items to cook with!", "error");
+      return;
+    }
+
     const res = await fetch(`${API_URL}/generate-recipes`, {
       method: "POST",
       headers: authHeaders(),
       body: JSON.stringify({
-        ingredients: allItems.map((i) => i.name).join(", "),
+        ingredients: usableItems.map((i) => i.name).join(", "),
       }),
     });
     const data = await res.json();
